@@ -1,0 +1,13 @@
+node_modules/
+dist/
+
+# Sesión de WhatsApp — NUNCA commitear (es como una contraseña)
+auth_info/
+
+# Config real con IDs de grupos y teléfonos — NUNCA commitear
+config.json
+
+# Mensajes persistidos localmente
+data/
+
+*.log

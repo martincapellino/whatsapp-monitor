@@ -1,0 +1,56 @@
+{
+  "teamGroupId": "120363400000000001@g.us",
+
+  "teamMembers": [
+    {
+      "name": "Juan Pérez",
+      "phone": "5491100000001"
+    },
+    {
+      "name": "María García",
+      "phone": "5491100000002"
+    }
+  ],
+
+  "clientGroups": [
+    {
+      "id": "120363400000000002@g.us",
+      "clientName": "nombre-cliente-1",
+      "responsiblePhone": "5491100000001"
+    },
+    {
+      "id": "120363400000000003@g.us",
+      "clientName": "nombre-cliente-2",
+      "responsiblePhone": "5491100000002"
+    },
+    {
+      "id": "120363400000000004@g.us",
+      "clientName": "nombre-cliente-3",
+      "responsiblePhone": "5491100000001"
+    }
+  ],
+
+  "checkIntervalHours": 3,
+
+  "minWaitMinutes": 90,
+
+  "pendingPhrases": [
+    "ya lo vemos",
+    "ahí lo vemos",
+    "ahora lo vemos",
+    "dale ahora lo vemos",
+    "lo revisamos",
+    "ahí te digo",
+    "ya te digo",
+    "ya te respondo",
+    "ahí te cuento",
+    "ya te cuento",
+    "en un momento",
+    "ya te aviso",
+    "ahí lo veo",
+    "lo veo y te digo",
+    "te aviso",
+    "lo vemos",
+    "ahora vemos"
+  ]
+}

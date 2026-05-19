@@ -1,0 +1,23 @@
+{
+  "name": "whatsapp-monitor",
+  "version": "1.0.0",
+  "description": "Monitor de grupos de clientes para Nucleus by Limitless",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "list-groups": "ts-node src/list-groups.ts",
+    "build": "tsc",
+    "start:prod": "node dist/index.js"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "node-cron": "^3.0.3",
+    "pino": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/node-cron": "^3.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.4.0"
+  }
+}
