@@ -3,6 +3,9 @@ primary_region = 'gru'
 
 [build]
 
+[env]
+  AUTH_DIR = '/app/data/auth_info'
+
 [mounts]
   source = 'whatsapp_data'
   destination = '/app/data'

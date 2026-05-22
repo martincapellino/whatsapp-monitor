@@ -1,8 +1,12 @@
 import * as fs from 'fs'
+import * as path from 'path'
 import * as readline from 'readline'
 import { loadConfig } from './config'
 import { connectToWhatsApp, requestPairingCode } from './connection'
 import { startMonitor } from './monitor'
+
+const AUTH_DIR = process.env.AUTH_DIR || './auth_info'
+const CREDS_FILE = path.join(AUTH_DIR, 'creds.json')
 
 async function main() {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -13,11 +17,11 @@ async function main() {
   console.log(`📂 Config cargada`)
   console.log(`   Grupos de clientes: ${config.clientGroups.length}`)
   console.log(`   Miembros del equipo: ${config.teamMembers.length}`)
-  console.log(`   Intervalo de revisión: cada ${config.checkIntervalHours} horas\n`)
+  console.log(`   Intervalo de revisión: cada ${config.checkIntervalHours} horas`)
+  console.log(`   Auth dir: ${AUTH_DIR}\n`)
 
-  const isFirstTime = !fs.existsSync('./auth_info/creds.json')
+  const isFirstTime = !fs.existsSync(CREDS_FILE)
 
-  // Conectar — el socket queda escuchando eventos internamente
   const sock = await connectToWhatsApp()
 
   if (isFirstTime) {
@@ -35,16 +39,11 @@ async function main() {
     console.log('4. Ingresá el código de arriba\n')
   }
 
-  // Esperar evento 'open' antes de arrancar el monitor
   await new Promise<void>((resolve) => {
     sock.ev.on('connection.update', (update) => {
-      if (update.connection === 'open') {
-        resolve()
-      }
+      if (update.connection === 'open') resolve()
     })
-
-    // Si ya estaba conectado (sesión existente), resolver igual después de 3s
-    setTimeout(resolve, 3000)
+    setTimeout(resolve, 5000)
   })
 
   startMonitor()
@@ -56,10 +55,7 @@ async function main() {
 function prompt(question: string): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
   return new Promise(resolve => {
-    rl.question(question, answer => {
-      rl.close()
-      resolve(answer)
-    })
+    rl.question(question, answer => { rl.close(); resolve(answer) })
   })
 }
 

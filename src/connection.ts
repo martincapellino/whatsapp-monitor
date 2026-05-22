@@ -12,6 +12,8 @@ import { hasPendingPhrase, checkPendingIssues } from './monitor'
 import { sendSummaryToTeam } from './notifier'
 import { isTeamPhone, getConfig } from './config'
 
+const AUTH_DIR = process.env.AUTH_DIR || './auth_info'
+
 let sock: WASocket | null = null
 
 export function getSocket(): WASocket | null {
@@ -19,7 +21,7 @@ export function getSocket(): WASocket | null {
 }
 
 export async function connectToWhatsApp(): Promise<WASocket> {
-  const { state, saveCreds } = await useMultiFileAuthState('./auth_info')
+  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR)
   const { version } = await fetchLatestBaileysVersion()
   const logger = pino({ level: 'silent' })
 
@@ -74,25 +76,20 @@ export async function connectToWhatsApp(): Promise<WASocket> {
       const text = extractText(msg)
       if (!text.trim()) continue
 
-      // ── Logs de debug ─────────────────────────────────────────────────────
       console.log('📨 JID:', jid)
       console.log('📝 Texto:', JSON.stringify(text))
-      console.log('🔑 TeamGroupId:', config.teamGroupId)
-      console.log('🔍 Match:', jid === config.teamGroupId)
 
       const fromMe = msg.key.fromMe ?? false
       const senderJid = fromMe ? 'me' : (msg.key.participant ?? 'unknown')
       const isFromTeam = fromMe || isTeamPhone(senderJid)
+
       console.log('👤 fromMe:', fromMe, '| senderJid:', senderJid, '| isFromTeam:', isFromTeam)
 
-      // ── Comandos en el grupo del equipo ───────────────────────────────────
       if (jid === config.teamGroupId && isFromTeam) {
-
         const listoMatch = text.trim().match(/^#([\w-]+)\s+listo$/i)
         if (listoMatch) {
           const clientName = listoMatch[1].toLowerCase()
           const groupExists = config.clientGroups.some(g => g.clientName === clientName)
-
           if (groupExists) {
             markResolved(clientName, senderJid)
             await sock?.sendMessage(jid, {
@@ -109,11 +106,8 @@ export async function connectToWhatsApp(): Promise<WASocket> {
         if (text.trim().toLowerCase() === '#revisar') {
           console.log('\n🔍 Revisión manual solicitada...')
           const issues = checkPendingIssues()
-
           if (issues.length === 0) {
-            await sock?.sendMessage(jid, {
-              text: '✅ Todo OK, no hay pendientes en este momento.',
-            })
+            await sock?.sendMessage(jid, { text: '✅ Todo OK, no hay pendientes en este momento.' })
           } else {
             await sendSummaryToTeam(issues)
           }
@@ -123,9 +117,7 @@ export async function connectToWhatsApp(): Promise<WASocket> {
 
       if (!isFromTeam) {
         const clientGroup = config.clientGroups.find(g => g.id === jid)
-        if (clientGroup) {
-          clearResolved(clientGroup.clientName)
-        }
+        if (clientGroup) clearResolved(clientGroup.clientName)
       }
 
       addMessage({
