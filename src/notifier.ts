@@ -2,7 +2,7 @@ import { PendingIssue, IssueReason } from './monitor'
 import { getConfig, TeamMember } from './config'
 import { getSocket } from './connection'
 
-// ─── Formateo ─────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatTime(minutes: number): string {
   if (minutes < 60) return `${minutes} min`
@@ -16,20 +16,16 @@ function reasonLabel(reason: IssueReason): string {
 }
 
 /**
- * Construye el mensaje de resumen agrupado por miembro del equipo.
- *
- * Formato (igual al ejemplo):
- *
- * 📋 PENDIENTES — 15/05 18:00
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━
- *
- * @Juan Carrizo
- * #alvaro-larraz Consulta sin respuesta (2h 15min)
- * #juan-virola Sin seguimiento — "ahí lo vemos" (3h)
- *
- * @Naza G
- * #ana-montana Sin respuesta (1h 40min)
+ * Devuelve el JID completo para mencionar a un miembro del equipo.
+ * Prioriza @lid (nuevo formato en grupos), cae a @s.whatsapp.net si no tiene lid.
  */
+function getMentionJid(member: TeamMember): string {
+  if (member.lid) return `${member.lid}@lid`
+  return `${member.phone}@s.whatsapp.net`
+}
+
+// ─── Formateo ─────────────────────────────────────────────────────────────────
+
 function buildMessage(issues: PendingIssue[]): {
   text: string
   mentions: string[]
@@ -42,7 +38,7 @@ function buildMessage(issues: PendingIssue[]): {
     minute: '2-digit',
   })
 
-  // Agrupar issues por responsable
+  // Agrupar por responsable
   const byResponsible = new Map<string, { member: TeamMember | null; issues: PendingIssue[] }>()
 
   for (const issue of issues) {
@@ -63,26 +59,26 @@ function buildMessage(issues: PendingIssue[]): {
 
   for (const { member, issues: memberIssues } of byResponsible.values()) {
     if (member) {
-      lines.push(`@${member.name}`)
-      mentions.push(`${member.phone}@s.whatsapp.net`)
+      const mentionJid = getMentionJid(member)
+      mentions.push(mentionJid)
+      // @número es como WhatsApp renderiza las menciones internamente
+      lines.push(`@${member.lid || member.phone}`)
     } else {
       lines.push(`⚠️ Sin responsable asignado`)
     }
 
     for (const issue of memberIssues) {
-      const hashtag = `#${issue.clientName}`
       const label = reasonLabel(issue.reason)
       const time = formatTime(issue.minutesSince)
 
       if (issue.reason === 'no_response') {
-        lines.push(`${hashtag} ${label} (${time})`)
+        lines.push(`#${issue.clientName} ${label} (${time})`)
       } else {
-        // Pending phrase: mostramos el texto que se dijo
-        lines.push(`${hashtag} ${label} — "_${issue.pendingText}_" (${time})`)
+        lines.push(`#${issue.clientName} ${label} — "_${issue.pendingText}_" (${time})`)
       }
     }
 
-    lines.push('') // línea en blanco entre personas
+    lines.push('')
   }
 
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -106,9 +102,9 @@ export async function sendSummaryToTeam(issues: PendingIssue[]): Promise<void> {
   try {
     await sock.sendMessage(config.teamGroupId, { text, mentions })
     console.log('✅ Resumen enviado al grupo del equipo.')
-    console.log('── Mensaje enviado ──────────────────')
+    console.log('── Mensaje ──────────────────────────')
     console.log(text)
-    console.log('────────────────────────────────────\n')
+    console.log('─────────────────────────────────────\n')
   } catch (err) {
     console.error('❌ Error enviando al grupo del equipo:', err)
   }
