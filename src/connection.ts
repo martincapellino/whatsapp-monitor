@@ -47,8 +47,9 @@ export async function connectToWhatsApp(): Promise<WASocket> {
       const isLoggedOut = statusCode === DisconnectReason.loggedOut
 
       if (isLoggedOut) {
-        console.log('\n⚠️  Sesión cerrada. Borrá auth_info/ y volvé a vincular.')
-        process.exit(1)
+        console.log('\n⚠️  Sesión cerrada. Reconectando para re-vincular...')
+        setTimeout(() => connectToWhatsApp(), 3000)
+        return
       }
 
       console.log(`🔄 Reconectando en 5s... (código: ${statusCode})`)
