@@ -77,14 +77,10 @@ export async function connectToWhatsApp(): Promise<WASocket> {
       const text = extractText(msg)
       if (!text.trim()) continue
 
-      console.log('📨 JID:', jid)
-      console.log('📝 Texto:', JSON.stringify(text))
-
+     
       const fromMe = msg.key.fromMe ?? false
       const senderJid = fromMe ? 'me' : (msg.key.participant ?? 'unknown')
       const isFromTeam = fromMe || isTeamPhone(senderJid)
-
-      console.log('👤 fromMe:', fromMe, '| senderJid:', senderJid, '| isFromTeam:', isFromTeam)
 
       if (jid === config.teamGroupId && isFromTeam) {
         const listoMatch = text.trim().match(/^#([\w-]+)\s+listo$/i)
