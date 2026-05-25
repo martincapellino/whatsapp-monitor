@@ -62,7 +62,7 @@ function buildMessage(issues: PendingIssue[]): {
       const mentionJid = getMentionJid(member)
       mentions.push(mentionJid)
       // @número es como WhatsApp renderiza las menciones internamente
-      lines.push(`@${member.lid || member.phone}`)
+      lines.push(`@${member.phone}`)
     } else {
       lines.push(`⚠️ Sin responsable asignado`)
     }
