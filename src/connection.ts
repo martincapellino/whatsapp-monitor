@@ -80,6 +80,7 @@ export async function connectToWhatsApp(): Promise<WASocket> {
      
       const fromMe = msg.key.fromMe ?? false
       const senderJid = fromMe ? 'me' : (msg.key.participant ?? 'unknown')
+      console.log('👤 senderJid:', senderJid)
       const isFromTeam = fromMe || isTeamPhone(senderJid)
 
       if (jid === config.teamGroupId && isFromTeam) {
