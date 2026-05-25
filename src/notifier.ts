@@ -2,8 +2,6 @@ import { PendingIssue, IssueReason } from './monitor'
 import { getConfig, TeamMember } from './config'
 import { getSocket } from './connection'
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function formatTime(minutes: number): string {
   if (minutes < 60) return `${minutes} min`
   const h = Math.floor(minutes / 60)
@@ -16,15 +14,22 @@ function reasonLabel(reason: IssueReason): string {
 }
 
 /**
- * Devuelve el JID completo para mencionar a un miembro del equipo.
- * Prioriza @lid (nuevo formato en grupos), cae a @s.whatsapp.net si no tiene lid.
+ * JID para el array mentions — WhatsApp necesita @lid si existe, sino @s.whatsapp.net
  */
 function getMentionJid(member: TeamMember): string {
   if (member.lid) return `${member.lid}@lid`
   return `${member.phone}@s.whatsapp.net`
 }
 
-// ─── Formateo ─────────────────────────────────────────────────────────────────
+/**
+ * Texto que va en el cuerpo del mensaje para que WhatsApp renderice la mención.
+ * Con @lid: tiene que ser @{lid} (sin el sufijo @lid)
+ * Sin lid: tiene que ser @{phone}
+ */
+function getMentionText(member: TeamMember): string {
+  if (member.lid) return `@${member.lid}`
+  return `@${member.phone}`
+}
 
 function buildMessage(issues: PendingIssue[]): {
   text: string
@@ -38,7 +43,6 @@ function buildMessage(issues: PendingIssue[]): {
     minute: '2-digit',
   })
 
-  // Agrupar por responsable
   const byResponsible = new Map<string, { member: TeamMember | null; issues: PendingIssue[] }>()
 
   for (const issue of issues) {
@@ -59,10 +63,8 @@ function buildMessage(issues: PendingIssue[]): {
 
   for (const { member, issues: memberIssues } of byResponsible.values()) {
     if (member) {
-      const mentionJid = getMentionJid(member)
-      mentions.push(mentionJid)
-      // @número es como WhatsApp renderiza las menciones internamente
-      lines.push(`@${member.phone}`)
+      mentions.push(getMentionJid(member))
+      lines.push(getMentionText(member))
     } else {
       lines.push(`⚠️ Sin responsable asignado`)
     }
@@ -87,8 +89,6 @@ function buildMessage(issues: PendingIssue[]): {
   return { text: lines.join('\n'), mentions }
 }
 
-// ─── Envío ────────────────────────────────────────────────────────────────────
-
 export async function sendSummaryToTeam(issues: PendingIssue[]): Promise<void> {
   const sock = getSocket()
   if (!sock) {
@@ -102,9 +102,7 @@ export async function sendSummaryToTeam(issues: PendingIssue[]): Promise<void> {
   try {
     await sock.sendMessage(config.teamGroupId, { text, mentions })
     console.log('✅ Resumen enviado al grupo del equipo.')
-    console.log('── Mensaje ──────────────────────────')
     console.log(text)
-    console.log('─────────────────────────────────────\n')
   } catch (err) {
     console.error('❌ Error enviando al grupo del equipo:', err)
   }
