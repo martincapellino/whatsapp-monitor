@@ -50,9 +50,11 @@ export function getConfig(): AppConfig {
 
 export function findTeamMember(jid: string): TeamMember | undefined {
   const config = getConfig()
-  // Extraemos solo los dígitos antes del @
-  const id = jid.split('@')[0]
-  return config.teamMembers.find(m => m.phone === id || m.lid === id)
+  const id = jid.split('@')[0].trim()
+  return config.teamMembers.find(m => 
+    m.phone === id || 
+    (m.lid && m.lid.split('@')[0].trim() === id)
+  )
 }
 
 /**
@@ -62,6 +64,9 @@ export function findTeamMember(jid: string): TeamMember | undefined {
  */
 export function isTeamPhone(jid: string): boolean {
   const config = getConfig()
-  const id = jid.split('@')[0]
-  return config.teamMembers.some(m => m.phone === id || (m.lid && m.lid === id))
+  const id = jid.split('@')[0].trim()
+  return config.teamMembers.some(m => 
+    m.phone === id || 
+    (m.lid && m.lid.split('@')[0].trim() === id)
+  )
 }
