@@ -146,7 +146,8 @@ export function checkPendingIssues(): PendingIssue[] {
 export function startMonitor(): void {
   const config = getConfig()
   const interval = config.checkIntervalHours
-  const cronExpr = `0 */${interval} * * *`
+  const cronExpr = `0 12,15,18,21,0 * * *`
+
 
   console.log(`⏰ Monitor activo — revisando cada ${interval} horas (cron: ${cronExpr})`)
   console.log(`   Grupos de clientes: ${config.clientGroups.length}`)
