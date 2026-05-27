@@ -77,12 +77,11 @@ export async function connectToWhatsApp(): Promise<WASocket> {
       const text = extractText(msg)
       if (!text.trim()) continue
 
-     
       const fromMe = msg.key.fromMe ?? false
       const senderJid = fromMe ? 'me' : (msg.key.participant ?? 'unknown')
-
       const isFromTeam = fromMe || isTeamPhone(senderJid)
 
+      // ── Comandos en el grupo del equipo ───────────────────────────────────
       if (jid === config.teamGroupId && isFromTeam) {
         const listoMatch = text.trim().match(/^#([\w-]+)\s+listo$/i)
         if (listoMatch) {
@@ -102,7 +101,6 @@ export async function connectToWhatsApp(): Promise<WASocket> {
         }
 
         if (text.trim().toLowerCase() === '#revisar') {
-          console.log('\n🔍 Revisión manual solicitada...')
           const issues = checkPendingIssues()
           if (issues.length === 0) {
             await sock?.sendMessage(jid, { text: '✅ Todo OK, no hay pendientes en este momento.' })
@@ -113,10 +111,15 @@ export async function connectToWhatsApp(): Promise<WASocket> {
         }
       }
 
+      // ── Si el cliente escribe, limpiar resolución manual ──────────────────
       if (!isFromTeam) {
         const clientGroup = config.clientGroups.find(g => g.id === jid)
         if (clientGroup) clearResolved(clientGroup.clientName)
       }
+
+      // ── Extraer quoted y menciones ────────────────────────────────────────
+      const quotedSenderJid = extractQuotedSender(msg)
+      const mentionedJids = extractMentions(msg)
 
       addMessage({
         id: msg.key.id ?? `${jid}-${Date.now()}`,
@@ -126,6 +129,8 @@ export async function connectToWhatsApp(): Promise<WASocket> {
         text,
         timestamp: Number(msg.messageTimestamp ?? Date.now() / 1000) * 1000,
         isPendingPhrase: isFromTeam && hasPendingPhrase(text),
+        quotedSenderJid,
+        mentionedJids,
       })
     }
   })
@@ -139,6 +144,8 @@ export async function requestPairingCode(phoneNumber: string): Promise<string> {
   return await sock.requestPairingCode(phoneNumber)
 }
 
+// ─── Utils ────────────────────────────────────────────────────────────────────
+
 function extractText(msg: proto.IWebMessageInfo): string {
   return (
     msg.message?.conversation ??
@@ -147,4 +154,14 @@ function extractText(msg: proto.IWebMessageInfo): string {
     msg.message?.videoMessage?.caption ??
     ''
   )
+}
+
+function extractQuotedSender(msg: proto.IWebMessageInfo): string | undefined {
+  const quoted = msg.message?.extendedTextMessage?.contextInfo?.participant
+  return quoted ?? undefined
+}
+
+function extractMentions(msg: proto.IWebMessageInfo): string[] {
+  const mentions = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid
+  return mentions ?? []
 }

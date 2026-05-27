@@ -11,6 +11,10 @@ export interface StoredMessage {
   text: string
   timestamp: number
   isPendingPhrase: boolean
+  /** JID del mensaje al que responde (si es una respuesta) */
+  quotedSenderJid?: string
+  /** JIDs mencionados en el mensaje */
+  mentionedJids?: string[]
 }
 
 interface ResolvedGroup {
@@ -21,15 +25,25 @@ interface ResolvedGroup {
 
 // ─── Config de storage ───────────────────────────────────────────────────────
 
-const DATA_DIR = path.resolve('./data')
-const MESSAGES_FILE = path.join(DATA_DIR, 'messages.json')
-const RESOLVED_FILE = path.join(DATA_DIR, 'resolved.json')
+const DATA_DIR = process.env.AUTH_DIR
+  ? path.join(path.dirname(process.env.AUTH_DIR), 'messages')
+  : path.resolve('./data')
+
+const MESSAGES_FILE = path.join(
+  process.env.AUTH_DIR ? path.dirname(process.env.AUTH_DIR) : './data',
+  'messages.json'
+)
+const RESOLVED_FILE = path.join(
+  process.env.AUTH_DIR ? path.dirname(process.env.AUTH_DIR) : './data',
+  'resolved.json'
+)
 const RETENTION_HOURS = 48
 
 // ─── Funciones internas ───────────────────────────────────────────────────────
 
 function ensureDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
+  const dir = path.dirname(MESSAGES_FILE)
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 }
 
 function load(): StoredMessage[] {
@@ -78,12 +92,12 @@ export function getGroupMessages(groupId: string, sinceMs: number): StoredMessag
     .sort((a, b) => a.timestamp - b.timestamp)
 }
 
+export function getMessageById(id: string): StoredMessage | undefined {
+  return load().find(m => m.id === id)
+}
+
 // ─── Grupos resueltos ─────────────────────────────────────────────────────────
 
-/**
- * Marca un grupo como resuelto manualmente.
- * El equipo lo hace enviando "#nombre-cliente listo" en el grupo del equipo.
- */
 export function markResolved(clientName: string, resolvedBy: string): void {
   const resolved = loadResolved().filter(r => r.clientName !== clientName)
   resolved.push({ clientName, resolvedAt: Date.now(), resolvedBy })
@@ -91,20 +105,14 @@ export function markResolved(clientName: string, resolvedBy: string): void {
   console.log(`✅ Marcado como resuelto: #${clientName} (por ${resolvedBy})`)
 }
 
-/**
- * Limpia la resolución cuando el cliente vuelve a escribir algo nuevo.
- * Así el sistema vuelve a monitorear ese grupo.
- */
 export function clearResolved(clientName: string): void {
   const before = loadResolved().length
   const resolved = loadResolved().filter(r => r.clientName !== clientName)
   if (resolved.length < before) {
     saveResolved(resolved)
-    console.log(`🔄 Resolución limpiada: #${clientName} (el cliente escribió de nuevo)`)
   }
 }
 
-/** Devuelve true si el grupo está marcado como resuelto */
 export function isResolved(clientName: string): boolean {
   return loadResolved().some(r => r.clientName === clientName)
 }

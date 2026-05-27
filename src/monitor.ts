@@ -23,14 +23,43 @@ export function hasPendingPhrase(text: string): boolean {
   return getConfig().pendingPhrases.some(p => lower.includes(p.toLowerCase()))
 }
 
-function resolveResponsible(groupId: string, messages: StoredMessage[]): TeamMember | null {
+/**
+ * Determina el responsable de un pendiente en base a:
+ * 1. Si el mensaje del cliente menciona o responde a alguien del equipo → ese es el responsable
+ * 2. Si el config tiene responsiblePhone para el grupo → ese
+ * 3. Último miembro del equipo que escribió en el grupo
+ * 4. null
+ */
+function resolveResponsible(
+  groupId: string,
+  messages: StoredMessage[],
+  triggerMsg: StoredMessage
+): TeamMember | null {
   const config = getConfig()
-  const groupConfig = config.clientGroups.find(g => g.id === groupId)
 
+  // ── Prioridad 1: el cliente mencionó a alguien del equipo ─────────────────
+  if (triggerMsg.mentionedJids && triggerMsg.mentionedJids.length > 0) {
+    for (const mentionedJid of triggerMsg.mentionedJids) {
+      if (isTeamPhone(mentionedJid)) {
+        const member = findTeamMember(mentionedJid)
+        if (member) return member
+      }
+    }
+  }
+
+  // ── Prioridad 2: el cliente respondió a un mensaje del equipo ─────────────
+  if (triggerMsg.quotedSenderJid && isTeamPhone(triggerMsg.quotedSenderJid)) {
+    const member = findTeamMember(triggerMsg.quotedSenderJid)
+    if (member) return member
+  }
+
+  // ── Prioridad 3: responsable explícito en config ──────────────────────────
+  const groupConfig = config.clientGroups.find(g => g.id === groupId)
   if (groupConfig?.responsiblePhone) {
     return findTeamMember(groupConfig.responsiblePhone) ?? null
   }
 
+  // ── Prioridad 4: último del equipo que escribió ───────────────────────────
   const lastTeamMsg = [...messages].reverse().find(m => m.isFromTeam && m.senderJid !== 'me')
   if (lastTeamMsg) return findTeamMember(lastTeamMsg.senderJid) ?? null
 
@@ -48,16 +77,11 @@ export function checkPendingIssues(): PendingIssue[] {
   const minWaitMs = config.minWaitMinutes * 60 * 1000
 
   for (const group of config.clientGroups) {
-    // Si el equipo lo marcó como resuelto, salteamos sin alertar
-    if (isResolved(group.clientName)) {
-      console.log(`   ⏭️  #${group.clientName} — marcado como resuelto, salteando`)
-      continue
-    }
+    if (isResolved(group.clientName)) continue
 
     const messages = getGroupMessages(group.id, since)
     if (messages.length === 0) continue
 
-    const responsible = resolveResponsible(group.id, messages)
     let issueFound = false
 
     // CASO 1: Sin respuesta del equipo
@@ -65,6 +89,7 @@ export function checkPendingIssues(): PendingIssue[] {
     if (!lastMsg.isFromTeam) {
       const elapsed = Date.now() - lastMsg.timestamp
       if (elapsed >= minWaitMs) {
+        const responsible = resolveResponsible(group.id, messages, lastMsg)
         issues.push({
           groupId: group.id,
           clientName: group.clientName,
@@ -91,6 +116,14 @@ export function checkPendingIssues(): PendingIssue[] {
       if (!hasRealFollowUp) {
         const elapsed = Date.now() - msg.timestamp
         if (elapsed >= minWaitMs) {
+          // Para pending phrase, el trigger es el mensaje del equipo que dijo "ya lo vemos"
+          // Buscamos el último mensaje del cliente antes de ese para ver si mencionó a alguien
+          const lastClientMsg = messages.slice(0, i).reverse().find(m => !m.isFromTeam)
+          const responsible = resolveResponsible(
+            group.id,
+            messages,
+            lastClientMsg ?? msg
+          )
           issues.push({
             groupId: group.id,
             clientName: group.clientName,
