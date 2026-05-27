@@ -72,7 +72,7 @@ export function checkPendingIssues(): PendingIssue[] {
   const config = getConfig()
   const issues: PendingIssue[] = []
 
-  const windowMs = (config.checkIntervalHours + 1) * 60 * 60 * 1000
+  const windowMs = 24 * 60 * 60 * 1000
   const since = Date.now() - windowMs
   const minWaitMs = config.minWaitMinutes * 60 * 1000
 
